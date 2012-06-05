@@ -1,4 +1,29 @@
-﻿using System;
+﻿// Copyright (c) 2012, XBRL Cloud Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer. Redistributions in
+// binary form must reproduce the above copyright notice, this list of
+// conditions and the following disclaimer in the documentation and/or
+// other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -119,9 +144,9 @@ namespace NscaEventLogModule
 
             // create X-Path query
             // for example:
-            // *[System[Provider[@Name='.NET Runtime' or @Name='.NET Runtime Optimization Service' 
-            //  or @Name='Microsoft-Windows-Dhcp-Client'] and 
-            // (Level=1  or Level=2 or Level=3 or Level=4 or Level=0 or Level=5) and 
+            // *[System[Provider[@Name='.NET Runtime' or @Name='.NET Runtime Optimization Service'
+            //  or @Name='Microsoft-Windows-Dhcp-Client'] and
+            // (Level=1  or Level=2 or Level=3 or Level=4 or Level=0 or Level=5) and
             // (EventID=1 or EventID=2 or  (EventID &gt;= 4 and EventID &lt;= 7) )]]
             StringBuilder xq = new StringBuilder();
             xq.Append("*");
@@ -288,7 +313,7 @@ namespace NscaEventLogModule
 
                         if (_rxFilter != null && string.IsNullOrWhiteSpace(msg) == false && !_rxFilter.IsMatch(msg))
                             return;
-                        
+
                         string fMsg = string.Format("{0}, EventID = {1}{2}{3}", arg.EventRecord.TimeCreated.HasValue ? arg.EventRecord.TimeCreated : DateTime.Now, r.Id & 0xFFFF, System.Environment.NewLine, msg);
                         EventRaised.Invoke(this, new EventWatcherArgs(this.EventDescription.NagiosServiceName, this.EventDescription.MessageLevel,
                             fMsg));
