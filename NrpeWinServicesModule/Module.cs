@@ -1,0 +1,192 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.ComponentModel.Composition;
+using Nagios.Net.Client.Common;
+using System.IO;
+using System.Reflection;
+using System.Configuration;
+using Nagios.Net.Client;
+using System.ServiceProcess;
+
+namespace NscaWinServicesModule
+{
+    [Export(typeof(IModule))]
+    [PartCreationPolicy(CreationPolicy.NonShared)]
+    public class Module : IModule, INsca
+    {
+        System.Timers.Timer _timer;
+        TimeSpan _timerInterval;
+        FileSystemWatcher watcherConfig;
+        private int _startPause;
+        List<CheckingService> _services;
+
+        public Module()
+        {
+            _services = new List<CheckingService>();
+            _timerInterval = new TimeSpan(0, 0, 5);
+            _startPause = 60;
+            string path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filter = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + ".dll.config";
+            watcherConfig = new FileSystemWatcher(path, filter);
+            watcherConfig.Changed += new FileSystemEventHandler(OnConfigChanghed);
+        }
+
+        void OnConfigChanghed(object sender, FileSystemEventArgs e)
+        {
+            watcherConfig.EnableRaisingEvents = false;
+            Stop();
+            Run();
+            watcherConfig.EnableRaisingEvents = true;
+        }
+
+        #region IModule
+
+        public string ModuleName
+        {
+            get
+            {
+                return new AssemblyName(System.Reflection.Assembly.GetExecutingAssembly().FullName).Name;
+            }
+        }
+
+        public string Version
+        {
+            get
+            {
+                return new AssemblyName(System.Reflection.Assembly.GetExecutingAssembly().FullName).Version.ToString();
+            }
+        }
+
+        public string Description
+        {
+            get
+            {
+                return "NscaWinServicesModule module check Windows Services status and send reporting messages";
+            }
+        }
+
+        #endregion
+
+        #region INsca
+
+        public event NscaCheckEventHandler NscaCheck;
+        private void RaiseNscaCheck(Nagios.Net.Client.Nsca.Level level, string serviceName, string msg)
+        {
+            if (NscaCheck != null)
+                NscaCheck.Invoke(this, new NscaCheckEventArgs(string.IsNullOrWhiteSpace(serviceName) ? this.ModuleName : serviceName, level, msg));
+        }
+
+        public void Run()
+        {
+            LoadConfig();
+            if (_timer == null)
+            {
+                _timer = new System.Timers.Timer();
+                _timer.Interval = _timerInterval.TotalMilliseconds;
+                _timer.Elapsed += new System.Timers.ElapsedEventHandler(_timer_Elapsed);
+            }
+            _timer.Enabled = true;
+            watcherConfig.EnableRaisingEvents = true;
+        }
+
+        void _timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            CheckServices(e.SignalTime);
+        }
+
+        private void LoadConfig()
+        {
+            string path = System.Reflection.Assembly.GetExecutingAssembly().Location.ToLowerInvariant();
+            Configuration cfg = ConfigurationManager.OpenExeConfiguration(path);
+
+            if (cfg.AppSettings.Settings.AllKeys.Contains(ConfigConstants.NagiosServiceStartPause))
+            {
+                if (int.TryParse(cfg.AppSettings.Settings[ConfigConstants.NagiosServiceStartPause].Value, out _startPause) == false)
+                    _startPause = 60;
+            }
+
+            try
+            {
+                if (cfg.AppSettings.Settings.AllKeys.Contains(ConfigConstants.Services))
+                {
+                    WinServices s = WinServices.Load(cfg.AppSettings.Settings[ConfigConstants.Services].Value);
+                    _services.Clear();
+
+                    s.Services.ForEach(x => { _services.Add(new CheckingService { LastChecked = DateTime.Now.AddSeconds(_startPause), Service = x }); });
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(string.Format("{0}\n{1}", ex.Message, ex.StackTrace), true);
+            }
+        }
+
+
+        public bool CanStop
+        {
+            get { return true; }
+        }
+
+        public void Stop()
+        {
+            watcherConfig.EnableRaisingEvents = false;
+            if (_timer != null)
+            {
+                _timer.Enabled = false;
+            }
+        }
+
+        #endregion
+
+        public void CheckServices(DateTime time)
+        {
+            if (_timer.Enabled == false)
+                return;
+            try
+            {
+                foreach(CheckingService cs in _services)
+                {
+                    if (cs.LastChecked.AddSeconds(cs.Service.Duration) < time)
+                    {
+                        var sr = new ServiceController(cs.Service.ServiceName);
+                        if (sr != null)
+                        {
+                            cs.LastChecked = time;
+                            if (sr.Status.Equals(cs.Service.CheckedStatus) == false)
+                            {
+                                if (sr.Status.Equals(cs.Service.PendingStatus) == true)
+                                {
+                                    // send warning
+                                    RaiseNscaCheck(Nagios.Net.Client.Nsca.Level.Warning, string.IsNullOrWhiteSpace(cs.Service.NagiosServiceName) ? cs.Service.ServiceName : cs.Service.NagiosServiceName, string.Format("Service {0} has the {1} status", cs.Service.DisplayName, sr.Status.ToString()));
+                                }
+                                else
+                                {
+                                    // send critical
+                                    RaiseNscaCheck(Nagios.Net.Client.Nsca.Level.Critical, string.IsNullOrWhiteSpace(cs.Service.NagiosServiceName) ? cs.Service.ServiceName : cs.Service.NagiosServiceName, string.Format("Service {0} has the {1} status", cs.Service.DisplayName, sr.Status.ToString()));
+                                }
+                            }
+                            else
+                            {
+                                // send ok
+                                RaiseNscaCheck(Nagios.Net.Client.Nsca.Level.OK, string.IsNullOrWhiteSpace(cs.Service.NagiosServiceName) ? cs.Service.ServiceName : cs.Service.NagiosServiceName, string.Format("Service {0} has the {1} status", cs.Service.DisplayName, sr.Status.ToString()));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RaiseNscaCheck(Nagios.Net.Client.Nsca.Level.Unknown, null, string.Format("{0}\n{1}", ex.Message, ex.StackTrace));
+                Nagios.Net.Client.Log.WriteLog(string.Format("{0}\n{1}", ex.Message, ex.StackTrace), true);
+            }
+        }
+    }
+
+    public class CheckingService
+    {
+        public ServiceDescription Service;
+        public DateTime LastChecked;
+    }
+}

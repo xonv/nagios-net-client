@@ -1,0 +1,143 @@
+﻿<Window 
+    x:Class="NrpePerfCountersModule.Configurator.CounterEditor"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    xmlns:f="clr-namespace:NrpePerfCountersModule.Configurator.Formatters"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    mc:Ignorable="d" 
+    d:DesignHeight="600" d:DesignWidth="800" Title="Perf Counter configurator" MinHeight="480" MinWidth="640">
+    <Window.Resources>
+        <f:NotEmptyToVisibleFormatter x:Key="NotEmptyToVisibleFormatter"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!-- Config elements -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.5*"/>
+                <ColumnDefinition Width="0.5*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="0.25*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="0.75*" />
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Categories:" Margin="8"/>
+            <ListBox x:Name="categories" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" Grid.Row="1" Grid.RowSpan="3" Margin="8,0,0,0" >
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding CategoryName}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="Available Instances for selected category:"  Grid.Column="1" Margin="8,8,8,8"/>
+            <ListBox x:Name="countersInstances" ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance, Mode=TwoWay}" Grid.Row="1" Grid.Column="1" Margin="8,0,8,0">
+            </ListBox>
+            <TextBlock Text="Available counters" Grid.Row="2" Grid.Column="1" Margin="8,8,8,8" />
+            <ListBox x:Name="categoryCounters" ItemsSource="{Binding Counters}" SelectedItem="{Binding SelectedCounter, Mode=TwoWay}"  Grid.Row="3" Grid.Column="1" Margin="8,0,8,0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding CounterName}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <GroupBox Header="Counder Description" Grid.Row="4" Grid.ColumnSpan="2" Margin="4" Padding="4">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Height="48">
+                    <TextBlock Text="{Binding CounterHelp}" Visibility="{Binding CounterHelp, Converter={StaticResource NotEmptyToVisibleFormatter}}" Foreground="Blue" TextWrapping="Wrap" HorizontalAlignment="Left" />
+                </ScrollViewer>
+            </GroupBox >
+            
+
+            <GroupBox Header="Logging Time Window" Grid.Row="5" Grid.ColumnSpan="2" Margin="8,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Duration*, s: " VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding Duration, Mode=TwoWay}" Width="40" />
+                    <TextBlock Text="   Calculate function: " VerticalAlignment="Center"/>
+                    <ComboBox SelectedIndex="{Binding CalcMethod, Mode=TwoWay}" Width="90">
+                        <sys:String>avg</sys:String>
+                        <sys:String>min</sys:String>
+                        <sys:String>max</sys:String>
+                        <sys:String>sum</sys:String>
+                    </ComboBox>
+                    <TextBlock Text="     *min duration value - 5 s (minimum counter checking interval)" VerticalAlignment="Center"/>
+                </StackPanel>
+
+            </GroupBox>
+            
+            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.ColumnSpan="2">
+                <TextBlock Text="Nrpe command name: " FontWeight="Bold" VerticalAlignment="Center" Margin="8,8,0,8"/>
+                <TextBox Text="{Binding Command, Mode=TwoWay}" Width="240" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <GroupBox Header="Message expressions" Grid.Row="7" Grid.ColumnSpan="2" Margin="8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Critical" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text=" - expr method: " VerticalAlignment="Center" Grid.Column="1"/>
+                    <ComboBox SelectedIndex="{Binding CriticalMethod, Mode=TwoWay}" Width="140" Grid.Column="2" Margin="0,4">
+                        <sys:String>equal</sys:String>
+                        <sys:String>greate then</sys:String>
+                        <sys:String>less then</sys:String>
+                        <sys:String>greater or equal</sys:String>
+                        <sys:String>less or equal</sys:String>
+                    </ComboBox>
+                    <TextBlock Text="  value: " VerticalAlignment="Center" Grid.Column="3"/>
+                    <TextBox Text="{Binding CriticalValue, Mode=TwoWay}" Width="80" Grid.Column="4" Margin="0,4"/>
+
+                    <TextBlock Text="Warning" FontWeight="Bold" VerticalAlignment="Center" Grid.Row="1"/>
+                    <TextBlock Text=" - expr method: " VerticalAlignment="Center" Grid.Row="1" Grid.Column="1"/>
+                    <ComboBox SelectedIndex="{Binding WarningMethod, Mode=TwoWay}" Width="140" Grid.Row="1" Grid.Column="2" Margin="0,4">
+                        <sys:String>equal</sys:String>
+                        <sys:String>greate then</sys:String>
+                        <sys:String>less then</sys:String>
+                        <sys:String>greater or equal</sys:String>
+                        <sys:String>less or equal</sys:String>
+                    </ComboBox>
+                    <TextBlock Text="  value: " VerticalAlignment="Center" Grid.Row="1" Grid.Column="3"/>
+                    <TextBox Text="{Binding WarningValue, Mode=TwoWay}" Width="80" Grid.Row="1" Grid.Column="4" Margin="0,4"/>
+
+                    <!--<TextBlock Text="OK" FontWeight="Bold" VerticalAlignment="Center" Grid.Row="2"/>
+                    <TextBlock Text=" - expr method: " VerticalAlignment="Center" Grid.Row="2" Grid.Column="1"/>
+                    <ComboBox Width="140" Grid.Row="2" Grid.Column="2" Margin="0,4">
+                        <sys:String>equal</sys:String>
+                        <sys:String>greate then</sys:String>
+                        <sys:String>less then</sys:String>
+                        <sys:String>greater or equal</sys:String>
+                        <sys:String>less or equal</sys:String>
+                    </ComboBox>
+                    <TextBlock Text="  value: " VerticalAlignment="Center" Grid.Row="2" Grid.Column="3"/>
+                    <TextBox Text="" Width="80" Grid.Row="2" Grid.Column="4" Margin="0,4"/>-->
+                </Grid>
+            </GroupBox>
+        </Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="1">
+            <Button Click="SaveButton_Click" Content="Save" Height="30" MinWidth="80" Margin="4,8"/>
+            <Button Click="CancelButton_Click" Content="Cancel" Height="30" MinWidth="80" Margin="4,8,8,8"/>
+        </StackPanel>
+    </Grid>
+</Window>
