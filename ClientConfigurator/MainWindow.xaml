@@ -81,8 +81,11 @@
                 </Grid>
             </sdk:TabItem>
         </sdk:TabControl>
+        
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Grid.Row="1">
-            <Button Content=" Save " Click="SaveButton_Click" MinWidth="100" Height="30" Margin="8"/>
+            <Button Content=" Save &amp; Update Firewall " ToolTipService.ToolTip="Save changes and Add/Change Windows Firewall rules that needed for Nagios Net Client work right"
+                Click="FirewallButton_Click" Height="30" Margin="8"/>
+            <Button Content=" Save " Click="SaveButton_Click" MinWidth="100" Height="30" Margin="0,8,8,8"/>
             <Button Content=" Cancel " Click="CancelButton_Click" MinWidth="100" Height="30" Margin="0,8,8,8"/>
             <Button Content=" Close " Click="CloseButton_Click" MinWidth="100" Height="30" Margin="0,8,8,8"/>
         </StackPanel>

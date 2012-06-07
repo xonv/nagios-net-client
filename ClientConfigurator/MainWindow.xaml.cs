@@ -36,6 +36,7 @@ using Nagios.Net.Client.Common;
 using System.ComponentModel.Composition.Hosting;
 using System.ComponentModel.Composition;
 using System.Windows.Controls;
+using System.Text;
 
 namespace ClientConfigurator
 {
@@ -186,8 +187,9 @@ namespace ClientConfigurator
                 MessageBox.Show("NRPE settings not founded in config file!", "Error config loading", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
-        private void SaveConfig()
+        private bool SaveConfig()
         {
+            bool rslt = false;
             Nagios.Net.Client.Nsca.NscaSettings nsca = _appConfig.GetSection("nscaSettings") as Nagios.Net.Client.Nsca.NscaSettings;
             if (nsca != null)
             {
@@ -212,12 +214,14 @@ namespace ClientConfigurator
                 _appConfig.Save(ConfigurationSaveMode.Full);
                 this.statusMsg.Foreground = SystemColors.ControlTextBrush;
                 this.statusMsg.Text = "Data saved at " + DateTime.Now.ToString("HH:mm:ss");
+                rslt = true;
             }
             catch (Exception ex)
             {
                 this.statusMsg.Foreground = new SolidColorBrush(Colors.Red);
                 this.statusMsg.Text = "Erorr: " + ex.Message;
             }
+            return rslt;
         }
 
         private void UpdateNsca(Nagios.Net.Client.Nsca.NscaSettings nsca)
@@ -248,7 +252,9 @@ namespace ClientConfigurator
             nrpe.Port = port;
             nrpe.SSL = this.nrpeUseSsl.IsChecked == true ? true : false;
             nrpe.Hosts.Clear();
-            foreach (var h in _nrpeHosts)
+
+            System.Net.IPAddress nrpeIp = null;
+            foreach (var h in _nrpeHosts.Where(x=> System.Net.IPAddress.TryParse(x.Host, out nrpeIp) == true))
                 nrpe.Hosts.Add(h);
             nrpe.SectionInformation.ForceSave = true;
         }
@@ -271,8 +277,22 @@ namespace ClientConfigurator
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            SaveConfig();
-            _modules.ForEach(x => x.SaveChanges());
+            SaveAll();
+        }
+
+        private bool SaveAll()
+        {
+            bool rslt = SaveConfig();
+            try
+            {
+                _modules.ForEach(x => x.SaveChanges());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Save Configs", MessageBoxButton.OK, MessageBoxImage.Error);
+                rslt = false;
+            }
+            return rslt;
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
@@ -294,6 +314,85 @@ namespace ClientConfigurator
                 return;
             _nrpeHosts.Remove((Nagios.Net.Client.Nrpe.FilteredHost)this.nrpeHosts.SelectedItem);
             this.nrpeHosts.SelectedItem = _nrpeHosts.FirstOrDefault();
+        }
+
+        private const string fRuleNscaName = "Nagios Net NSCA";
+        private const string fRuleNrpeName = "Nagios Net NRPE";
+        private void FirewallButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SaveAll() == false)
+                return;
+
+            try
+            {
+                var fw = (NetFwTypeLib.INetFwMgr)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwMgr"));
+                if (fw == null || fw.LocalPolicy.CurrentProfile.FirewallEnabled == false)
+                {
+                    MessageBox.Show("Can't set firewall rules. Windows Firewall diabled. Please enable firewall.", "Firewall", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // check firewall rules
+
+                NetFwTypeLib.INetFwPolicy2 firewallPolicy = (NetFwTypeLib.INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
+                if (firewallPolicy != null)
+                {
+                    firewallPolicy.Rules.Remove(fRuleNscaName);
+                    firewallPolicy.Rules.Remove(fRuleNrpeName);
+
+                    Nagios.Net.Client.Nsca.NscaSettings nsca = _appConfig.GetSection("nscaSettings") as Nagios.Net.Client.Nsca.NscaSettings;
+                    if (nsca != null)
+                    {
+                        NetFwTypeLib.INetFwRule nscaRule = (NetFwTypeLib.INetFwRule)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FWRule"));
+                        if (nscaRule != null)
+                        {
+                            nscaRule.Protocol = (int)NetFwTypeLib.NET_FW_IP_PROTOCOL_.NET_FW_IP_PROTOCOL_TCP;
+                            nscaRule.Action = NetFwTypeLib.NET_FW_ACTION_.NET_FW_ACTION_ALLOW;
+                            nscaRule.Description = "Used to allow Nagios Net client send NSCA messages to Nagios server";
+                            nscaRule.Direction = NetFwTypeLib.NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_OUT;
+                            nscaRule.Enabled = true;
+                            nscaRule.InterfaceTypes = "All";
+                            nscaRule.Name = fRuleNscaName;
+                            nscaRule.RemoteAddresses = nsca.NscaAddress;
+                            nscaRule.RemotePorts = nsca.Port.ToString();
+                            firewallPolicy.Rules.Add(nscaRule);
+                        }
+                    }
+
+                    Nagios.Net.Client.Nrpe.NrpeSettings nrpe = _appConfig.GetSection("nrpeSettings") as Nagios.Net.Client.Nrpe.NrpeSettings;
+                    if (nrpe != null)
+                    {
+                        NetFwTypeLib.INetFwRule nrpeRule = (NetFwTypeLib.INetFwRule)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FWRule"));
+
+                        if (nrpeRule != null)
+                        {
+                            nrpeRule.Protocol = (int)NetFwTypeLib.NET_FW_IP_PROTOCOL_.NET_FW_IP_PROTOCOL_TCP; 
+                            nrpeRule.Action = NetFwTypeLib.NET_FW_ACTION_.NET_FW_ACTION_ALLOW;
+                            nrpeRule.Description = "Used to allow Nagios Net client receive NRPE commands and send replies to Nagios server";
+                            nrpeRule.Direction = NetFwTypeLib.NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN;
+                            nrpeRule.Enabled = true;
+                            nrpeRule.InterfaceTypes = "All";
+                            nrpeRule.Name = fRuleNrpeName;
+
+                            StringBuilder fhs = new StringBuilder();
+                            foreach (Nagios.Net.Client.Nrpe.FilteredHost fh in nrpe.Hosts)
+                            {
+                                if (fhs.Length > 0)
+                                    fhs.Append(",");
+                                fhs.Append(fh.Host);
+                            }
+                            nrpeRule.RemoteAddresses = fhs.Length > 0 ? fhs.ToString() : "*";
+                            nrpeRule.LocalAddresses = nrpe.IP.ToUpper().Contains("ANY") ? "*" : nrpe.IP;
+                            nrpeRule.LocalPorts = nrpe.Port.ToString();
+                            firewallPolicy.Rules.Add(nrpeRule);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Firewall Rules", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }
