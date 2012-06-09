@@ -42,6 +42,9 @@ namespace Nagios.Net.Client
 
         public NagiosNetClientInstaller()
         {
+            System.Diagnostics.EventLog log = Log.GetLog();
+            if (log == null)
+                throw new Exception("Please install service as administrator");
             // Instantiate installers for process and services.
             processInstaller = new ServiceProcessInstaller();
             serviceInstaller = new ServiceInstaller();
