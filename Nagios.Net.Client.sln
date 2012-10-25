@@ -44,6 +44,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceInstaller", "ServiceInstaller\ServiceInstaller.csproj", "{637EA664-FA94-4552-8AEE-C0EAE244BBEF}"
 EndProject
 Global
+	GlobalSection(RocketSvnScc) = preSolution
+		Svn-Managed = True
+		Manager = Rocket SVN - Subversion Support for Visual Studio
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|Mixed Platforms = Debug|Mixed Platforms
