@@ -40,7 +40,7 @@ namespace Nagios.Net.Client.Nsca
         private readonly PassiveCheckProtocolWriter protocolWriter;
 
         public NscaClientSender()
-            : this((NscaSettings) System.Configuration.ConfigurationManager.GetSection("nscaSettings"))
+            : this((NscaSettings)System.Configuration.ConfigurationManager.GetSection("nscaSettings"))
         {
         }
 
@@ -60,12 +60,15 @@ namespace Nagios.Net.Client.Nsca
             string host = hostName;
             if (string.IsNullOrWhiteSpace(settings.NscaHostName) == false)
                 host = settings.NscaHostName;
+            bool rVal = false;
             try
             {
                 using (TcpClient tcpClient = new TcpClient())
                 {
                     tcpClient.Connect(settings.NscaAddress, settings.Port);
-                    using (var stream = tcpClient.GetStream())
+                    var stream = tcpClient.GetStream();
+
+                    try
                     {
                         byte[] initVector = new byte[128];
                         stream.Read(initVector, 0, 128);
@@ -74,10 +77,24 @@ namespace Nagios.Net.Client.Nsca
                         stream.Read(timestamp, 0, 4);
 
                         var bytesToSend = protocolWriter.EncodeToProtocol(level, timestamp, host, serviceName, message, initVector);
-                        stream.Write(bytesToSend, 0, bytesToSend.Length);
+                        if (bytesToSend != null && bytesToSend.Length > 0)
+                        {
+                            stream.Write(bytesToSend, 0, bytesToSend.Length);
+                            rVal = true;
+                        }
+                    }
+                    catch (Exception eio)
+                    {
+                        Log.WriteLog("NscaClientSender stream: " + eio.Message, true);
+
+                        System.Diagnostics.Debug.WriteLine(eio.Message);
+                        System.Diagnostics.Debug.WriteLine(eio.StackTrace);
+                    }
+                    finally
+                    {
+                        stream.Close();
                     }
                 }
-                return true;
             }
             catch (Exception ex)
             {
@@ -86,8 +103,8 @@ namespace Nagios.Net.Client.Nsca
                 System.Diagnostics.Debug.WriteLine(ex.Message);
                 System.Diagnostics.Debug.WriteLine(ex.StackTrace);
                 //intentionally swallow exceptions, maybe some logging is required.
-                return false;
             }
+            return rVal;
         }
     }
 }

@@ -49,6 +49,7 @@ namespace Nagios.Net.Client.Nsca
 
         public byte[] EncodeToProtocol(Level level, byte[] timestamp, string hostName, string serviceName, string message, byte[] initVector)
         {
+            byte[] bufOut = null;
             using (var stream = new MemoryStream(16 + HOST_NAME_SIZE + SERVICE_NAME_SIZE + PLUGIN_OUTPUT_SIZE))
             {
                 stream.WriteShort(Nsca_VERSION); //bytes 0-1
@@ -70,13 +71,9 @@ namespace Nagios.Net.Client.Nsca
                 stream.WriteInt(hash);
 
                 var encryptor = EncryptorFactory.CreateEncryptor(settings.EncryptionType);
-                byte[] bufOut = encryptor.Encrypt(stream.ToArray(), initVector, settings.Password);
-
-                return bufOut;
+                bufOut = encryptor.Encrypt(stream.ToArray(), initVector, settings.Password);
             }
+            return bufOut;
         }
     }
-
-
-
 }
