@@ -71,7 +71,7 @@
     <Optimize>false</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
-    <OutputPath>..\bin\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <DocumentationFile>..\ManagedOpenSsl.XML</DocumentationFile>
     <Optimize>true</Optimize>
